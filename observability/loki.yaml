@@ -1,0 +1,99 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: loki-data-pvc
+  namespace: loki
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi # Adjust size based on your log volume
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: loki-config
+  namespace: loki
+data:
+  local-config.yaml: |
+    auth_enabled: false
+    server:
+      http_listen_port: 3100
+      grpc_listen_port: 9095
+    common:
+      instance_addr: 127.0.0.1
+      path_prefix: /data/loki # Changed from /tmp to /data
+      storage:
+        filesystem:
+          chunks_directory: /data/loki/chunks
+          rules_directory: /data/loki/rules
+      replication_factor: 1
+      ring:
+        kvstore:
+          store: inmemory
+    schema_config:
+      configs:
+        - from: "2024-01-01"
+          store: tsdb
+          object_store: filesystem
+          schema: v13
+          index:
+            prefix: index_
+            period: 24h
+    limits_config:
+      retention_period: 744h
+      reject_old_samples: true
+      reject_old_samples_max_age: 168h
+      allow_structured_metadata: true
+    compactor:
+      working_directory: /data/loki/retention
+      delete_request_store: filesystem # Fixed the validation error
+      retention_enabled: true
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loki
+  namespace: loki
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: loki
+  template:
+    metadata:
+      labels:
+        app: loki
+    spec:
+      containers:
+        - name: loki
+          image: grafana/loki:3.0.0
+          args:
+            - "-config.file=/etc/loki/local-config.yaml"
+          ports:
+            - containerPort: 3100
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/loki
+            - name: storage-volume
+              mountPath: /data # This matches the path_prefix in the config
+      volumes:
+        - name: config-volume
+          configMap:
+            name: loki-config
+        - name: storage-volume
+          persistentVolumeClaim:
+            claimName: loki-data-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: loki
+  namespace: loki
+spec:
+  ports:
+    - port: 3100
+      targetPort: 3100
+  selector:
+    app: loki

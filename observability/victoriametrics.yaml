@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: victoriametrics
+  namespace: victoriametrics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: victoriametrics
+  template:
+    metadata:
+      labels:
+        app: victoriametrics
+    spec:
+      containers:
+        - name: victoriametrics
+          image: victoriametrics/victoria-metrics:v1.93.0
+          ports:
+            - containerPort: 8428
+          args:
+            - -storageDataPath=/storage
+            - -retentionPeriod=1d
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: victoriametrics
+  namespace: victoriametrics
+spec:
+  ports:
+    - port: 8428
+      targetPort: 8428
+  selector:
+    app: victoriametrics

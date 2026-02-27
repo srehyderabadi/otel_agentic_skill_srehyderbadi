@@ -1,0 +1,201 @@
+# ---- Middleware: strip /victoriametrics prefix before forwarding ----
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-victoriametrics
+  namespace: victoriametrics
+spec:
+  stripPrefix:
+    prefixes:
+      - /victoriametrics
+---
+# ---- Grafana ----
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: observability-ingress
+  namespace: grafana
+  annotations:
+    ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /grafana
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana
+                port:
+                  number: 3000
+---
+# ---- Jaeger ----
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: jaeger-ingress
+  namespace: jaeger
+  annotations:
+    ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /jaeger
+            pathType: Prefix
+            backend:
+              service:
+                name: jaeger
+                port:
+                  number: 16686
+---
+# ---- OTel Collector (OTLP/HTTP ingest) ----
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: otel-collector-ingress
+  namespace: opentelemetry
+  annotations:
+    ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /v1/traces
+            pathType: Prefix
+            backend:
+              service:
+                name: otel-collector
+                port:
+                  number: 4318
+          - path: /v1/metrics
+            pathType: Prefix
+            backend:
+              service:
+                name: otel-collector
+                port:
+                  number: 4318
+          - path: /v1/logs
+            pathType: Prefix
+            backend:
+              service:
+                name: otel-collector
+                port:
+                  number: 4318
+---
+# ---- VictoriaMetrics (prefix stripped by middleware) ----
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: victoriametrics-ingress
+  namespace: victoriametrics
+  annotations:
+    ingress.kubernetes.io/ssl-redirect: "false"
+    traefik.ingress.kubernetes.io/router.middlewares: victoriametrics-strip-victoriametrics@kubernetescrd
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /victoriametrics
+            pathType: Prefix
+            backend:
+              service:
+                name: victoriametrics
+                port:
+                  number: 8428
+---
+# ---- Middleware: strip /prometheus prefix ----
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-prometheus
+  namespace: prometheus
+spec:
+  stripPrefix:
+    prefixes:
+      - /prometheus
+---
+# ---- Prometheus ----
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: prometheus-ingress
+  namespace: prometheus
+  annotations:
+    ingress.kubernetes.io/ssl-redirect: "false"
+    traefik.ingress.kubernetes.io/router.middlewares: prometheus-strip-prometheus@kubernetescrd
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /prometheus
+            pathType: Prefix
+            backend:
+              service:
+                name: prometheus
+                port:
+                  number: 9090
+---
+# ---- Middleware: strip /loki prefix ----
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-loki
+  namespace: loki
+spec:
+  stripPrefix:
+    prefixes:
+      - /loki
+---
+# ---- Loki ----
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: loki-ingress
+  namespace: loki
+  annotations:
+    ingress.kubernetes.io/ssl-redirect: "false"
+    traefik.ingress.kubernetes.io/router.middlewares: loki-strip-loki@kubernetescrd
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /loki
+            pathType: Prefix
+            backend:
+              service:
+                name: loki
+                port:
+                  number: 3100
+---
+# ---- Middleware: strip /tempo prefix ----
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-tempo
+  namespace: tempo
+spec:
+  stripPrefix:
+    prefixes:
+      - /tempo
+---
+# ---- Tempo ----
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: tempo-ingress
+  namespace: tempo
+  annotations:
+    ingress.kubernetes.io/ssl-redirect: "false"
+    traefik.ingress.kubernetes.io/router.middlewares: tempo-strip-tempo@kubernetescrd
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /tempo
+            pathType: Prefix
+            backend:
+              service:
+                name: tempo
+                port:
+                  number: 3200

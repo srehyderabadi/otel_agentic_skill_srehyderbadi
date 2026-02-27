@@ -1,0 +1,139 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: biryani-service
+  namespace: apps
+  labels:
+    app: biryani-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: biryani-service
+  template:
+    metadata:
+      labels:
+        app: biryani-service
+    spec:
+      containers:
+        - name: biryani-service
+          image: biryani-service:latest
+          imagePullPolicy: Never # Good for local k3d/minikube where image is loaded
+          ports:
+            - containerPort: 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: biryani-service
+  namespace: apps
+spec:
+  selector:
+    app: biryani-service
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chai-service
+  namespace: apps
+  labels:
+    app: chai-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chai-service
+  template:
+    metadata:
+      labels:
+        app: chai-service
+    spec:
+      containers:
+        - name: chai-service
+          image: chai-service:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chai-service
+  namespace: apps
+spec:
+  selector:
+    app: chai-service
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  namespace: apps
+  labels:
+    app: order-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+    spec:
+      containers:
+        - name: order-service
+          image: order-service:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8000
+          env:
+            - name: BIRYANI_SERVICE_URL
+              value: "http://biryani-service:8000"
+            - name: CHAI_SERVICE_URL
+              value: "http://chai-service:8000"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+  namespace: apps
+spec:
+  selector:
+    app: order-service
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: order-ingress
+  namespace: apps
+  annotations:
+    ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: order-service
+                port:
+                  number: 8000

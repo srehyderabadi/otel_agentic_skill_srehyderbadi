@@ -1,0 +1,43 @@
+apiVersion: opentelemetry.io/v1alpha1
+kind: Instrumentation
+metadata:
+  name: hyderabadi-instrumentation
+  namespace: apps
+spec:
+  # ── WHERE TO SEND TELEMETRY ────────────────────────────────────────────
+  exporter:
+    endpoint: http://otel-collector.opentelemetry.svc.cluster.local:4318
+
+  # ── PROPAGATION FORMAT ─────────────────────────────────────────────────
+  # w3c tracecontext = standard distributed tracing header (traceparent)
+  # baggage = pass key/value metadata across services
+  propagators:
+    - tracecontext
+    - baggage
+
+  # ── SAMPLING ───────────────────────────────────────────────────────────
+  # parentbased_traceidratio: sample 100% of traces for the demo
+  sampler:
+    type: parentbased_traceidratio
+    argument: "1"
+
+  # ── PYTHON AUTO-INSTRUMENTATION ────────────────────────────────────────
+  # The operator pulls this init container image at pod startup.
+  # It installs opentelemetry-instrumentation-auto into the pod's filesystem
+  # and sets PYTHONPATH so the SDK is loaded before your app code.
+  python:
+    env:
+      - name: OTEL_TRACES_EXPORTER
+        value: otlp
+      - name: OTEL_METRICS_EXPORTER
+        value: otlp
+      - name: OTEL_LOGS_EXPORTER
+        value: otlp
+      - name: OTEL_EXPORTER_OTLP_PROTOCOL
+        value: http/protobuf
+      - name: OTEL_PYTHON_LOG_CORRELATION
+        value: "true"
+      - name: OTEL_PYTHON_LOG_LEVEL
+        value: "debug"
+      - name: OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED
+        value: "true"

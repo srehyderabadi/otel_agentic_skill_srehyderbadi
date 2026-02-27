@@ -1,0 +1,133 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config-initial
+  namespace: opentelemetry
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+    exporters:
+      # Metrics to VictoriaMetrics via Remote Write
+      prometheusremotewrite/victoriametrics:
+        endpoint: "http://victoriametrics.victoriametrics.svc.cluster.local:8428/api/v1/write"
+
+      # Traces to Jaeger via OTLP
+      otlp/jaeger:
+        endpoint: "jaeger.jaeger.svc.cluster.local:4317"
+        tls:
+          insecure: true
+
+      logging:
+        verbosity: detailed
+
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          exporters: [logging, otlp/jaeger]
+        metrics:
+          receivers: [otlp]
+          exporters: [logging, prometheusremotewrite/victoriametrics]
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config-initial
+  namespace: opentelemetry
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+    exporters:
+      # Metrics to Prometheus
+      prometheusremotewrite/prometheus:
+        endpoint: "http://prometheus.prometheus.svc.cluster.local:9090/api/v1/write"
+
+      # Traces to Tempo
+      otlp/tempo:
+        endpoint: "tempo.tempo.svc.cluster.local:4317"
+        tls:
+          insecure: true
+
+      # Logs to Loki
+      loki:
+        endpoint: "http://loki.loki.svc.cluster.local:3100/loki/api/v1/push"
+
+      logging:
+        verbosity: detailed
+
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          exporters: [logging, otlp/tempo]
+        metrics:
+          receivers: [otlp]
+          exporters: [logging, prometheusremotewrite/prometheus]
+        logs:
+          receivers: [otlp]
+          exporters: [logging, loki]
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  namespace: opentelemetry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: otel-collector
+  template:
+    metadata:
+      labels:
+        app: otel-collector
+    spec:
+      containers:
+        - name: otel-collector
+          image: otel/opentelemetry-collector-contrib:0.96.0
+          args:
+            - "--config=/conf/config.yaml"
+          volumeMounts:
+            - name: config-volume
+              mountPath: /conf
+          ports:
+            - containerPort: 4317
+            - containerPort: 4318
+      volumes:
+        - name: config-volume
+          configMap:
+            # Change this to otel-collector-config-demo to switch workflows
+            name: otel-collector-config-initial
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  namespace: opentelemetry
+spec:
+  ports:
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+  selector:
+    app: otel-collector
