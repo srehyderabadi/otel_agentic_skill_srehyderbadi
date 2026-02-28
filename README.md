@@ -4,6 +4,13 @@ A full observability demo that showcases **OpenTelemetry auto-instrumentation** 
 
 ---
 
+## 📊 Presentation Decks
+
+- [Blind to Boundless: Agentic OpenTelemetry](./presentation/Blind_to_Boundless-Agentic_OTel.pdf) — Main presentation cover
+- [Agent Skills vs Direct Scripts](./presentation/directscripts_vs_agentskills.pdf) — Comparison guide
+
+---
+
 ## 📋 Prerequisites
 
 Before running this demo, ensure the following tools and utilities are installed and available in your `PATH`.
@@ -152,10 +159,14 @@ This script checks every required tool, validates versions, and reports pass/fai
 │       ├── remove-otel-instrumentation.prompt.md
 │       ├── switch-otel-config.prompt.md
 │       └── cluster-health-check.prompt.md
+├── presentation/                      # Presentation decks
+│   ├── Blind_to_Boundless-Agentic_OTel.pdf
+│   └── directscripts_vs_agentskills.pdf
 ├── build_docker.sh                    # Build Docker images & import into k3d
 ├── run_k6.sh                          # Interactive load test runner
 ├── validate_setup.sh                  # ✅ Environment prerequisite validation script
-└── requirements.txt                   # Python dependencies for local dev
+├── requirements.txt                   # Python dependencies for local dev
+└── SAMPLE_QUERIES.md                  # Sample validation queries for backends
 ```
 
 ---
